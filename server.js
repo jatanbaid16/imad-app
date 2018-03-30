@@ -27,7 +27,7 @@ var articleOne={
     
 
 };
-function createTempleate(data){
+function createTemplate(data){
 var titile=data.title;
 var heading=data.heading;
 var date=data.date;
