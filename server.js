@@ -3,8 +3,16 @@ var morgan = require('morgan');
 var path = require('path');
 var Pool = require('pg').Pool;
 var crypto=require('crypto');
+var bodyParser=require('body-parser');
 var app = express();
+var session=require('express-session');
 app.use(morgan('combined'));
+app.use(bodyParser.json());
+app.use(session({
+    secret:'someRandomSecretValue',
+    cookie : { maxAge : 1000*60*60*24*30}
+}));
+
 
 var config={
   user:'jatanbaid16',
@@ -110,6 +118,83 @@ app.get('/hash/:input',function(req,res){
     var hashedString=hash(req.params.input,'this-is-some-random-string');
     res.send(hashedString);
 });
+
+
+app.post('/create-user',function(req,res){
+    //JSON
+    var username=req.body.username;
+    var password=req.body.password;
+    var salt=crypto.randomBytes(128).toString('hex');
+    var dbString=hash(passowrd,salt);
+        pool.query('INSERT INTO "user" (username,password) VALUES ($1,$2)',[username,dbString],function(err,result){
+             if(err){
+                 res.status(500).send(err.toString());
+            }
+            else{
+             res.send('user created successfully'+username);
+         
+        }
+
+        });
+});
+
+app.post('/login',function(req,res){
+    //JSON
+    var username=req.body.username;
+    var password=req.body.password;
+    
+        pool.query('SELECT * FROM  "user" WHERE username=$1',[username],function(err,result){
+             if(err){
+                 res.status(500).send(err.toString());
+            }
+            else{
+                if(result.rows.length===0)
+                {
+                    res.send(403).send('username/password is incrrect');
+                }
+                else{
+                    //Match the password
+                    var dbString=result.rows[0].password;
+                    var salt=dbString.split('$2')[2];
+                    var hashedPasword=hash(password,salt); //Create a hashed string with  password submitted and original salt
+                    if(hashedPassword===dbString)
+                    {
+                        //Set the session
+                        req.session.auth={userId:result.rows[0].id};
+                        //Set cookie with a session id
+                        //Internally on the server side it maps the session id to an object
+                        //{auth:{userId}}
+                        
+                        
+                        
+                        res.send('user created successfully'+username);
+                    
+                    }
+                    else{
+                        res.send(403).send('username/password is incrrect');
+                    }
+         
+                }
+             
+        }
+
+        });
+});
+
+app.get('/check-login',function(req,res){
+    if(req.session && req.session.auth && req.session.auth.uderId){
+        res.send('You r successfully logged in'+req.session.auth.userId.toString());
+    }
+    else{
+        res.send('You r not logged in');
+    }
+});
+
+app.get('/logout',function(req,res){
+    delete req.session.auth;
+    res.send('Logged Out');
+});
+
 
 var pool=new Pool(config);
 app.get('/test-db',function(req,res){
